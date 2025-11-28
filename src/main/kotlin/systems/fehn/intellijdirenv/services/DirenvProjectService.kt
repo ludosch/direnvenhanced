@@ -200,8 +200,10 @@ class DirenvProjectService(private val project: Project) {
             .addAction(
                 NotificationAction.create(MyBundle.message("openEnvrc")) { _, it ->
                     it.hideBalloon()
-
-                    FileEditorManager.getInstance(project).openFile(envrcFile, true, true)
+                    // Must run on EDT for file operations
+                    ApplicationManager.getApplication().invokeLater {
+                        FileEditorManager.getInstance(project).openFile(envrcFile, true, true)
+                    }
                 },
             )
             .notify(project)

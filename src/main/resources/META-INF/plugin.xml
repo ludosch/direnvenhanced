@@ -15,7 +15,7 @@
                              displayName="Direnv Settings" />
     <applicationService serviceImplementation="systems.fehn.intellijdirenv.settings.DirenvSettingsState" />
     <notificationGroup id="Direnv" displayType="BALLOON" />
-    <postStartupActivity implementation="systems.fehn.intellijdirenv.MyStartupActivity" />
+    <projectActivity implementation="systems.fehn.intellijdirenv.MyStartupActivity" />
   </extensions>
 
   <actions>
