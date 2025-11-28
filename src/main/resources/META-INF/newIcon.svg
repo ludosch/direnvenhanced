@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+    <title>direnv logo modern deep rich transparent taller arrow-adjusted</title>
+    <g id="folder-group-taller-centered" transform="translate(0, -30)">
+
+        <path fill="#0E7490" d="M464,128H272l-32-32H48C21.5,96,0,117.5,0,144v284c0,26.5,21.5,48,48,48h416c26.5,0,48-21.5,48-48V176 C512,149.5,490.5,128,464,128z"/>
+
+        <g transform="translate(0, 35)">
+            <path fill="#6EE7B7" d="M320,224c0-17.7-14.3-32-32-32h-64c-17.7,0-32,14.3-32,32v32h-48l80,80l80-80h-48v-32h64 V224z"/>
+        </g>
+
+    </g>
+</svg>
