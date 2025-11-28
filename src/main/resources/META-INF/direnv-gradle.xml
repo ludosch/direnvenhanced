@@ -1,0 +1,7 @@
+<idea-plugin>
+    <!-- Gradle integration extensions - loaded only when Gradle plugin is present -->
+    <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
+        <executionHelperExtension
+            implementation="systems.fehn.intellijdirenv.gradle.DirenvGradleExecutionHelperExtension"/>
+    </extensions>
+</idea-plugin>

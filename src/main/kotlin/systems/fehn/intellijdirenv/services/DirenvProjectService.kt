@@ -4,6 +4,9 @@ import com.fasterxml.jackson.core.JsonFactory
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.wsl.WSLCommandLineOptions
+import com.intellij.execution.wsl.WSLDistribution
+import com.intellij.execution.wsl.WslPath
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
@@ -18,60 +21,124 @@ import systems.fehn.intellijdirenv.MyBundle
 import systems.fehn.intellijdirenv.notificationGroup
 import systems.fehn.intellijdirenv.settings.DirenvSettingsState
 import systems.fehn.intellijdirenv.switchNull
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
 
 @Service(Service.Level.PROJECT)
 class DirenvProjectService(private val project: Project) {
     private val logger by lazy { logger<DirenvProjectService>() }
 
-    private val projectDir = project.guessProjectDir()
-        .switchNull(
-            onNull = { logger.warn("Could not determine project dir of project ${project.name}") },
-        )
+    private val projectDir: VirtualFile? = run {
+        // Try basePath first (more reliable for WSL projects)
+        val basePath = project.basePath
+        if (basePath != null) {
+            val vfs = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+            val dir = vfs.findFileByPath(basePath)
+            if (dir != null) {
+                return@run dir
+            }
+        }
+
+        // Fallback to guessProjectDir
+        project.guessProjectDir().also {
+            if (it == null) {
+                logger.warn("Could not determine project dir of project ${project.name}")
+            }
+        }
+    }
 
     val projectEnvrcFile: VirtualFile?
-        get() = projectDir?.findChild(".envrc")?.takeUnless { it.isDirectory }
+        get() = findEnvrcInParents(projectDir)
             .switchNull(
                 onNull = { logger.trace { "Project ${project.name} contains no .envrc file" } },
                 onNonNull = { logger.trace { "Project ${project.name} has .envrc file ${it.path}" } },
             )
+
+    /**
+     * Search for .envrc file in the project directory and parent directories,
+     * mimicking direnv's behavior. Limited to 20 levels to avoid infinite loops.
+     */
+    private fun findEnvrcInParents(dir: VirtualFile?, maxDepth: Int = 20): VirtualFile? {
+        var current = dir
+        var depth = 0
+        while (current != null && depth < maxDepth) {
+            val envrc = current.findChild(".envrc")
+            if (envrc != null && !envrc.isDirectory) {
+                return envrc
+            }
+            current = current.parent
+            depth++
+        }
+        return null
+    }
 
     private val envService by lazy { ApplicationManager.getApplication().getService(EnvironmentService::class.java) }
 
     private val jsonFactory by lazy { JsonFactory() }
 
     fun importDirenv(envrcFile: VirtualFile, notifyNoChange: Boolean = true) {
-        val process = executeDirenv(envrcFile, "export", "json")
-
-        if (process.waitFor() != 0) {
-            handleDirenvError(process, envrcFile)
-            return
-        }
-
-        jsonFactory.createParser(process.inputStream).use { parser ->
-
+        // Run blocking operation on a pooled thread to avoid EDT blocking
+        ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                val didWork = handleDirenvOutput(parser)
+                val process = executeDirenv(envrcFile, "export", "json")
 
-                if (didWork) {
+                // Read stdout BEFORE waitFor() to prevent deadlock
+                // direnv only terminates after its output has been read
+                val output = process.inputStream.readAllBytes().toString(StandardCharsets.UTF_8)
+
+                val completed = process.waitFor(30, TimeUnit.SECONDS)
+                if (!completed) {
+                    process.destroyForcibly()
+                    logger.error("Direnv process timed out after 30 seconds")
                     notificationGroup
                         .createNotification(
-                            MyBundle.message("executedSuccessfully"),
-                            "",
-                            NotificationType.INFORMATION,
+                            MyBundle.message("errorDuringDirenv"),
+                            "Process timed out",
+                            NotificationType.ERROR,
                         ).notify(project)
-                } else if (notifyNoChange) {
-                    notificationGroup
-                        .createNotification(
-                            MyBundle.message("alreadyUpToDate"),
-                            "",
-                            NotificationType.INFORMATION,
-                        ).notify(project)
+                    return@executeOnPooledThread
                 }
-            } catch (e: EnvironmentService.ManipulateEnvironmentException) {
+
+                if (process.exitValue() != 0) {
+                    handleDirenvError(process, envrcFile)
+                    return@executeOnPooledThread
+                }
+
+                jsonFactory.createParser(output).use { parser ->
+
+                    try {
+                        val didWork = handleDirenvOutput(parser)
+
+                        if (didWork) {
+                            notificationGroup
+                                .createNotification(
+                                    MyBundle.message("executedSuccessfully"),
+                                    "",
+                                    NotificationType.INFORMATION,
+                                ).notify(project)
+                        } else if (notifyNoChange) {
+                            notificationGroup
+                                .createNotification(
+                                    MyBundle.message("alreadyUpToDate"),
+                                    "",
+                                    NotificationType.INFORMATION,
+                                ).notify(project)
+                        }
+                    } catch (e: EnvironmentService.ManipulateEnvironmentException) {
+                        notificationGroup
+                            .createNotification(
+                                MyBundle.message("exceptionNotification"),
+                                e.localizedMessage,
+                                NotificationType.ERROR,
+                            ).notify(project)
+                    }
+                }
+            } catch (e: Exception) {
+                logger.error("importDirenv: Exception occurred", e)
                 notificationGroup
                     .createNotification(
-                        MyBundle.message("exceptionNotification"),
-                        e.localizedMessage,
+                        MyBundle.message("errorDuringDirenv"),
+                        e.message ?: "Unknown error",
                         NotificationType.ERROR,
                     ).notify(project)
             }
@@ -99,7 +166,7 @@ class DirenvProjectService(private val project: Project) {
     }
 
     private fun handleDirenvError(process: Process, envrcFile: VirtualFile) {
-        val error = process.errorStream.bufferedReader().readText()
+        val error = process.errorStream.readAllBytes().toString(StandardCharsets.UTF_8)
 
         val notification = if (error.contains(" is blocked")) {
             notificationGroup
@@ -111,9 +178,11 @@ class DirenvProjectService(private val project: Project) {
                 .addAction(
                     NotificationAction.create(MyBundle.message("allow")) { _, notification ->
                         notification.hideBalloon()
-                        executeDirenv(envrcFile, "allow").waitFor()
-
-                        importDirenv(envrcFile)
+                        // Run on pooled thread to avoid blocking EDT
+                        ApplicationManager.getApplication().executeOnPooledThread {
+                            executeDirenv(envrcFile, "allow").waitFor(10, TimeUnit.SECONDS)
+                            importDirenv(envrcFile)
+                        }
                     },
                 )
         } else {
@@ -140,13 +209,33 @@ class DirenvProjectService(private val project: Project) {
 
     private fun executeDirenv(envrcFile: VirtualFile, vararg args: String): Process {
         val workingDir = envrcFile.parent.path
-
-        val cli = GeneralCommandLine("direnv", *args)
-            .withWorkDirectory(workingDir)
-
         val appSettings = DirenvSettingsState.getInstance()
-        if (appSettings.direnvSettingsPath.isNotEmpty()) {
-            cli.withExePath(appSettings.direnvSettingsPath)
+
+        val direnvPath = if (appSettings.direnvSettingsPath.isNotEmpty()) {
+            appSettings.direnvSettingsPath
+        } else {
+            "direnv"
+        }
+
+        // Try to detect WSL path (\\wsl.localhost\... or \\wsl$\...)
+        val wslPath = WslPath.parseWindowsUncPath(workingDir)
+        val wslDistribution: WSLDistribution? = wslPath?.distribution
+            ?: WslPath.getDistributionByWindowsUncPath(workingDir)
+
+        val cli = if (wslDistribution != null) {
+            val linuxWorkingDir = wslPath?.linuxPath
+                ?: workingDir.replace('\\', '/')
+
+            val options = WSLCommandLineOptions()
+                .setRemoteWorkingDirectory(linuxWorkingDir)
+                .setLaunchWithWslExe(true)
+                .setExecuteCommandInDefaultShell(true)
+
+            val commandLine = GeneralCommandLine(direnvPath, *args)
+            wslDistribution.patchCommandLine(commandLine, project, options)
+        } else {
+            GeneralCommandLine(direnvPath, *args)
+                .withWorkDirectory(workingDir)
         }
 
         return cli.createProcess()

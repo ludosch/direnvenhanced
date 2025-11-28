@@ -4,12 +4,12 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.CommonDataKeys
 import systems.fehn.intellijdirenv.services.DirenvProjectService
 
 class DirenvImportAction : AnAction(MyBundle.message("importDirenvAction")) {
     override fun update(e: AnActionEvent) {
-        if (e.project == null) {
+        val project = e.project
+        if (project == null) {
             e.presentation.isEnabledAndVisible = false
             return
         }
@@ -17,13 +17,9 @@ class DirenvImportAction : AnAction(MyBundle.message("importDirenvAction")) {
         when (e.place) {
             ActionPlaces.MAIN_TOOLBAR -> e.presentation.isEnabledAndVisible = true
             ActionPlaces.PROJECT_VIEW_POPUP -> {
-
-                val psiFile = e.getData(CommonDataKeys.PSI_FILE)
-                if (psiFile == null || psiFile.isDirectory || !psiFile.isPhysical) {
-                    e.presentation.isEnabledAndVisible = false
-                } else {
-                    e.presentation.isEnabledAndVisible = psiFile.name.equals(".envrc", ignoreCase = true)
-                }
+                // Show action if the project has an .envrc file (anywhere in parent dirs)
+                val service = project.getService(DirenvProjectService::class.java)
+                e.presentation.isEnabledAndVisible = service.projectEnvrcFile != null
             }
 
             else -> e.presentation.isEnabledAndVisible = false
@@ -34,24 +30,17 @@ class DirenvImportAction : AnAction(MyBundle.message("importDirenvAction")) {
         val project = e.project ?: return
         val service = project.getService(DirenvProjectService::class.java)
 
-        when (e.place) {
-            ActionPlaces.MAIN_TOOLBAR -> service.projectEnvrcFile?.let {
-                service.importDirenv(it)
-            } ?: run {
-                val notification = notificationGroup
-                    .createNotification(
-                        MyBundle.message("noTopLevelEnvrcFileFound"),
-                        "",
-                        NotificationType.ERROR,
-                    )
-
-                notification.notify(project)
-            }
-
-            ActionPlaces.PROJECT_VIEW_POPUP -> {
-                val psiFile = e.getData(CommonDataKeys.PSI_FILE) ?: return
-                service.importDirenv(psiFile.virtualFile)
-            }
+        val envrcFile = service.projectEnvrcFile
+        if (envrcFile != null) {
+            service.importDirenv(envrcFile)
+        } else {
+            notificationGroup
+                .createNotification(
+                    MyBundle.message("noTopLevelEnvrcFileFound"),
+                    "",
+                    NotificationType.ERROR,
+                )
+                .notify(project)
         }
     }
 }

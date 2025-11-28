@@ -3,3 +3,7 @@
 /.qodana/
 /build/
 /.envrc
+/.intellijPlatform/
+/.kotlin/
+/devbox.json
+/devbox.lock

@@ -1,9 +1,15 @@
-# direnv integration for JetBrains IDEs
+# Direnv Enhanced - direnv integration for JetBrains IDEs
 
-![Build](https://github.com/fehnomenal/intellij-direnv/actions/workflows/build.yml/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/15285.svg)](https://plugins.jetbrains.com/plugin/15285)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/15285.svg)](https://plugins.jetbrains.com/plugin/15285)
+> **Fork of [Direnv Integration](https://github.com/fehnomenal/intellij-direnv) by fehnomenal with additional features.**
 
+## What's New in Direnv Enhanced
+
+- **WSL Support**: Full support for projects located in WSL (Windows Subsystem for Linux)
+- **Monorepo Support**: Automatically finds `.envrc` files in parent directories
+- **Gradle Integration**: Environment variables are injected into all Gradle operations (sync, build, tests, run)
+- **Improved Stability**: Fixed process deadlock issues and added timeouts
+
+---
 
 <!-- Plugin description -->
 This plugin provides an action to import environment variables from [direnv](https://github.com/direnv/direnv) into the Java process that is running the IDE.
@@ -24,9 +30,9 @@ To manually load an `.envrc` file:
 
 ![action-icon](https://user-images.githubusercontent.com/9959940/98688979-b6c88700-236b-11eb-8e27-319f23376212.png)
 
-- You can also right-click on any `.envrc` file and click <kbd>Import Direnv</kbd> to load its contents.   
+- You can also right-click anywhere in the project and click <kbd>Import Direnv</kbd> to reload the environment.
 
-**Note**: This plugin handles only `.envrc` files in the project root automatically, but you can use the right click method to manually import any `.envrc` file that is in the project directory.
+**Note**: This plugin automatically finds `.envrc` files in parent directories, which is useful for monorepo setups.
 
 **Note**: You need `direnv` in your path, or you can specify the location of your direnv executable in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>Direnv Settings</kbd>
 
@@ -34,22 +40,17 @@ To manually load an `.envrc` file:
 
 ## Installation
 
-- Using IDE built-in plugin system:
-  
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "intellij-direnv"</kbd> >
-  <kbd>Install Plugin</kbd>
-  
 - Manually:
 
-  Download the [latest release](https://github.com/fehnomenal/intellij-direnv/releases/latest) and install it manually using
+  Download the [latest release](https://github.com/ludosch/direnvenhanced/releases/latest) and install it manually using
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 
 ## Building from source
 
 ```shell script
-git clone https://github.com/fehnomenal/intellij-direnv
-cd intellij-direnv
+git clone https://github.com/ludosch/direnvenhanced
+cd direnvenhanced
 ./gradlew buildPlugin
 ```
 

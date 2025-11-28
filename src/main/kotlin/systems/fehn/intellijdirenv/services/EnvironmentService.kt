@@ -5,13 +5,24 @@ import systems.fehn.intellijdirenv.MyBundle
 
 @Service
 class EnvironmentService {
+    // Track variables loaded by direnv (separate from System.getenv modifications)
+    private val loadedVariables = mutableMapOf<String, String>()
+
     fun unsetVariable(name: String) {
         modifiableEnvironment.remove(name)
+        loadedVariables.remove(name)
     }
 
     fun setVariable(name: String, value: String) {
         modifiableEnvironment[name] = value
+        loadedVariables[name] = value
     }
+
+    /**
+     * Returns a copy of all variables that were loaded by direnv.
+     * Used by GradleEnvironmentProvider to pass env vars to Gradle Tooling API.
+     */
+    fun getLoadedVariables(): Map<String, String> = loadedVariables.toMap()
 
     class ManipulateEnvironmentException(message: String) : Throwable(message)
 
