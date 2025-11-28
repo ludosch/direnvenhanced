@@ -15,8 +15,9 @@ public class DirenvSettingsComponent {
     private final JBCheckBox direnvImportEveryExecution = new JBCheckBox("Automatically import any .envrc in the project root before every run/debug");
 
 
+    @SuppressWarnings("removal")
     public DirenvSettingsComponent() {
-        direnvPath.addBrowseFolderListener( "Direnv Path", "Path to the direnv file", null,
+        direnvPath.addBrowseFolderListener("Direnv Path", "Path to the direnv file", null,
                 FileChooserDescriptorFactory.createSingleFileDescriptor());
         mainPanel = FormBuilder
                 .createFormBuilder()
