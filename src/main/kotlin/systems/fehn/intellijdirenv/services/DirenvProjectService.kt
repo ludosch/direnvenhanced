@@ -55,18 +55,49 @@ class DirenvProjectService(private val project: Project) {
             )
 
     /**
-     * Search for .envrc file in the project directory and parent directories,
-     * mimicking direnv's behavior. Limited to 20 levels to avoid infinite loops.
+     * Search for .envrc file in the project directory and up to 1 parent directory.
+     * Uses java.io.File to avoid triggering IntelliJ VFS scans.
+     * For WSL projects, ensures we never leave the WSL filesystem.
      */
-    private fun findEnvrcInParents(dir: VirtualFile?, maxDepth: Int = 20): VirtualFile? {
-        var current = dir
+    private fun findEnvrcInParents(dir: VirtualFile?): VirtualFile? {
+        if (dir == null) return null
+
+        val basePath = dir.path
+        val isWslProject = basePath.startsWith("//wsl")
+
+        // Use java.io.File to search without triggering VFS operations
+        var currentPath = java.io.File(basePath)
         var depth = 0
-        while (current != null && depth < maxDepth) {
-            val envrc = current.findChild(".envrc")
-            if (envrc != null && !envrc.isDirectory) {
-                return envrc
+        val maxDepth = 2  // Project dir + 1 parent max
+
+        while (depth < maxDepth) {
+            val path = currentPath.absolutePath
+
+            // Stop at filesystem root
+            if (path == "/" || path.matches(Regex("^[A-Z]:[\\\\/]?$"))) {
+                break
             }
-            current = current.parent
+
+            // For WSL projects: stop at distribution root
+            if (isWslProject && path.replace('\\', '/').matches(Regex("^//wsl[^/]*/[^/]+/?$"))) {
+                break
+            }
+
+            // For WSL projects: never leave WSL filesystem
+            if (isWslProject && !path.replace('\\', '/').startsWith("//wsl")) {
+                break
+            }
+
+            // Check if .envrc exists using java.io.File (no VFS)
+            val envrcFile = java.io.File(currentPath, ".envrc")
+            if (envrcFile.exists() && envrcFile.isFile) {
+                // Only now use VFS to get the VirtualFile
+                val vfs = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                return vfs.findFileByPath(envrcFile.absolutePath)
+            }
+
+            val parent = currentPath.parentFile ?: break
+            currentPath = parent
             depth++
         }
         return null

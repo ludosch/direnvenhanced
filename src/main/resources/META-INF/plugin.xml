@@ -21,8 +21,8 @@
   <actions>
     <action id="Direnv.import.ToolBar"
             class="systems.fehn.intellijdirenv.DirenvImportAction"
-            text="Import Direnv"
-            description="Run direnv and import changes in the environment"
+            text="Reload with direnv"
+            description="Reload environment variables using direnv"
             icon="/META-INF/actionIcon.png">
       <add-to-group group-id="MainToolBar"
                     anchor="after"
@@ -33,7 +33,7 @@
     </action>
   </actions>
   <projectListeners>
-      <listener class="systems.fehn.intellijdirenv.DirenvExecutionListener"
-                topic="com.intellij.execution.ExecutionListener" />
+    <listener class="systems.fehn.intellijdirenv.DirenvExecutionListener"
+              topic="com.intellij.execution.ExecutionListener"/>
   </projectListeners>
 </idea-plugin>
