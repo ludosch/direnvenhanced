@@ -1,5 +1,6 @@
 .*/
 !.github/
+!.run/
 /build/
 /devbox.json
 /devbox.lock
