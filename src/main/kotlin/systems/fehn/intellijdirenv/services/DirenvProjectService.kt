@@ -107,55 +107,62 @@ class DirenvProjectService(private val project: Project) {
 
     private val jsonFactory by lazy { JsonFactory() }
 
-    fun importDirenv(envrcFile: VirtualFile, notifyNoChange: Boolean = true) {
-        // Run blocking operation on a pooled thread to avoid EDT blocking
-        ApplicationManager.getApplication().executeOnPooledThread {
-            try {
-                val process = executeDirenv(envrcFile, "export", "json")
+    fun importDirenv(envrcFile: VirtualFile, synchronous: Boolean = false) {
+        if (synchronous) {
+            // Run synchronously (for Run Configuration pre-execution)
+            doImportDirenv(envrcFile, showNotifications = false)
+        } else {
+            // Run async on pooled thread to avoid EDT blocking
+            ApplicationManager.getApplication().executeOnPooledThread {
+                doImportDirenv(envrcFile, showNotifications = true)
+            }
+        }
+    }
 
-                // Read stdout BEFORE waitFor() to prevent deadlock
-                // direnv only terminates after its output has been read
-                val output = process.inputStream.readAllBytes().toString(StandardCharsets.UTF_8)
+    private fun doImportDirenv(envrcFile: VirtualFile, showNotifications: Boolean) {
+        try {
+            val process = executeDirenv(envrcFile, "export", "json")
 
-                val completed = process.waitFor(30, TimeUnit.SECONDS)
-                if (!completed) {
-                    process.destroyForcibly()
-                    logger.error("Direnv process timed out after 30 seconds")
+            // Read stdout BEFORE waitFor() to prevent deadlock
+            // direnv only terminates after its output has been read
+            val output = process.inputStream.readAllBytes().toString(StandardCharsets.UTF_8)
+
+            val completed = process.waitFor(30, TimeUnit.SECONDS)
+            if (!completed) {
+                process.destroyForcibly()
+                logger.error("Direnv process timed out after 30 seconds")
+                if (showNotifications) {
                     notificationGroup
                         .createNotification(
                             MyBundle.message("errorDuringDirenv"),
                             "Process timed out",
                             NotificationType.ERROR,
                         ).notify(project)
-                    return@executeOnPooledThread
                 }
+                return
+            }
 
-                if (process.exitValue() != 0) {
+            if (process.exitValue() != 0) {
+                if (showNotifications) {
                     handleDirenvError(process, envrcFile)
-                    return@executeOnPooledThread
                 }
+                return
+            }
 
-                jsonFactory.createParser(output).use { parser ->
+            jsonFactory.createParser(output).use { parser ->
+                try {
+                    val didWork = handleDirenvOutput(parser)
 
-                    try {
-                        val didWork = handleDirenvOutput(parser)
-
-                        if (didWork) {
-                            notificationGroup
-                                .createNotification(
-                                    MyBundle.message("executedSuccessfully"),
-                                    "",
-                                    NotificationType.INFORMATION,
-                                ).notify(project)
-                        } else if (notifyNoChange) {
-                            notificationGroup
-                                .createNotification(
-                                    MyBundle.message("alreadyUpToDate"),
-                                    "",
-                                    NotificationType.INFORMATION,
-                                ).notify(project)
-                        }
-                    } catch (e: EnvironmentService.ManipulateEnvironmentException) {
+                    if (showNotifications && didWork) {
+                        notificationGroup
+                            .createNotification(
+                                MyBundle.message("executedSuccessfully"),
+                                "",
+                                NotificationType.INFORMATION,
+                            ).notify(project)
+                    }
+                } catch (e: EnvironmentService.ManipulateEnvironmentException) {
+                    if (showNotifications) {
                         notificationGroup
                             .createNotification(
                                 MyBundle.message("exceptionNotification"),
@@ -164,8 +171,10 @@ class DirenvProjectService(private val project: Project) {
                             ).notify(project)
                     }
                 }
-            } catch (e: Exception) {
-                logger.error("importDirenv: Exception occurred", e)
+            }
+        } catch (e: Exception) {
+            logger.error("importDirenv: Exception occurred", e)
+            if (showNotifications) {
                 notificationGroup
                     .createNotification(
                         MyBundle.message("errorDuringDirenv"),
@@ -181,15 +190,17 @@ class DirenvProjectService(private val project: Project) {
 
         while (parser.nextToken() != null) {
             if (parser.currentToken == JsonToken.FIELD_NAME) {
-                when (parser.nextToken()) {
-                    JsonToken.VALUE_NULL -> envService.unsetVariable(parser.currentName)
-                    JsonToken.VALUE_STRING -> envService.setVariable(parser.currentName, parser.valueAsString)
-
+                val fieldName = parser.currentName()
+                val changed = when (parser.nextToken()) {
+                    JsonToken.VALUE_NULL -> envService.unsetVariable(fieldName)
+                    JsonToken.VALUE_STRING -> envService.setVariable(fieldName, parser.valueAsString)
                     else -> continue
                 }
 
-                didWork = true
-                logger.trace { "Set variable ${parser.currentName} to ${parser.valueAsString}" }
+                if (changed) {
+                    didWork = true
+                    logger.trace { "Set variable $fieldName to ${parser.valueAsString}" }
+                }
             }
         }
 
@@ -259,6 +270,8 @@ class DirenvProjectService(private val project: Project) {
             val linuxWorkingDir = wslPath?.linuxPath
                 ?: workingDir.replace('\\', '/')
 
+            logger.info("executeDirenv: WSL mode, linuxWorkingDir=$linuxWorkingDir")
+
             val options = WSLCommandLineOptions()
                 .setRemoteWorkingDirectory(linuxWorkingDir)
                 .setLaunchWithWslExe(true)
@@ -267,10 +280,12 @@ class DirenvProjectService(private val project: Project) {
             val commandLine = GeneralCommandLine(direnvPath, *args)
             wslDistribution.patchCommandLine(commandLine, project, options)
         } else {
+            logger.info("executeDirenv: Native mode, workingDir=$workingDir, direnvPath=$direnvPath")
             GeneralCommandLine(direnvPath, *args)
                 .withWorkDirectory(workingDir)
         }
 
+        logger.info("executeDirenv: commandLine=${cli.commandLineString}")
         return cli.createProcess()
     }
 }

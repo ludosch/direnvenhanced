@@ -8,14 +8,18 @@ class EnvironmentService {
     // Track variables loaded by direnv (separate from System.getenv modifications)
     private val loadedVariables = mutableMapOf<String, String>()
 
-    fun unsetVariable(name: String) {
+    fun unsetVariable(name: String): Boolean {
+        val existed = modifiableEnvironment.containsKey(name)
         modifiableEnvironment.remove(name)
         loadedVariables.remove(name)
+        return existed
     }
 
-    fun setVariable(name: String, value: String) {
+    fun setVariable(name: String, value: String): Boolean {
+        val changed = modifiableEnvironment[name] != value
         modifiableEnvironment[name] = value
         loadedVariables[name] = value
+        return changed
     }
 
     /**

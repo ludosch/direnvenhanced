@@ -20,7 +20,8 @@ class MyStartupActivity : ProjectActivity {
 
         projectService.projectEnvrcFile?.let {
             if (appSettings.direnvSettingsImportOnStartup) {
-                projectService.importDirenv(it)
+                // Use synchronous mode to ensure env vars are loaded before other startup activities
+                projectService.importDirenv(it, synchronous = true)
             } else {
                 notify(project, projectService, it)
             }

@@ -22,20 +22,17 @@ class DirenvImportAction : AnAction(MyBundle.message("importDirenvAction")) {
         }
 
         val virtualFile = e.getData(CommonDataKeys.VIRTUAL_FILE)
-        logger.info("DirenvImportAction.update: place=${e.place}, file=${virtualFile?.name}, path=${virtualFile?.path}")
 
         // Check if we're in a popup menu context (right-click)
         val isPopupMenu = e.place.contains("Popup", ignoreCase = true)
 
-        when {
-            e.place == ActionPlaces.MAIN_TOOLBAR -> e.presentation.isEnabledAndVisible = true
-            isPopupMenu -> {
-                // Show action only when right-clicking on a .envrc file
-                val isEnvrc = virtualFile?.name == ".envrc"
-                logger.info("DirenvImportAction.update: isPopupMenu=true, isEnvrc=$isEnvrc")
-                e.presentation.isEnabledAndVisible = isEnvrc
-            }
-            else -> e.presentation.isEnabledAndVisible = false
+        if (isPopupMenu) {
+            // Show action only when right-clicking on a .envrc file
+            val isEnvrc = virtualFile?.name == ".envrc"
+            e.presentation.isEnabledAndVisible = isEnvrc
+        } else {
+            // Always visible in toolbar, menus, and keyboard shortcuts
+            e.presentation.isEnabledAndVisible = true
         }
     }
 

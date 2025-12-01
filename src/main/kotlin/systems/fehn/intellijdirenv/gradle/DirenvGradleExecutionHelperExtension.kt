@@ -5,7 +5,9 @@ import com.intellij.openapi.diagnostic.logger
 import org.jetbrains.plugins.gradle.service.execution.GradleExecutionContext
 import org.jetbrains.plugins.gradle.service.project.GradleExecutionHelperExtension
 import org.jetbrains.plugins.gradle.settings.GradleExecutionSettings
+import systems.fehn.intellijdirenv.services.DirenvProjectService
 import systems.fehn.intellijdirenv.services.EnvironmentService
+import systems.fehn.intellijdirenv.settings.DirenvSettingsState
 
 /**
  * Extension that injects direnv-loaded environment variables into ALL Gradle operations.
@@ -28,7 +30,21 @@ class DirenvGradleExecutionHelperExtension : GradleExecutionHelperExtension {
         try {
             val envService = ApplicationManager.getApplication()
                 .getService(EnvironmentService::class.java)
-            val loadedVariables = envService.getLoadedVariables()
+            var loadedVariables = envService.getLoadedVariables()
+
+            // If no variables loaded yet and auto-import is enabled, load them now
+            if (loadedVariables.isEmpty()) {
+                val appSettings = DirenvSettingsState.getInstance()
+                if (appSettings.direnvSettingsImportOnStartup || appSettings.direnvSettingsImportEveryExecution) {
+                    val project = context.project
+                    logger.info("No direnv variables loaded yet, loading synchronously...")
+                    val projectService = project.getService(DirenvProjectService::class.java)
+                    projectService.projectEnvrcFile?.let { envrcFile ->
+                        projectService.importDirenv(envrcFile, synchronous = true)
+                        loadedVariables = envService.getLoadedVariables()
+                    }
+                }
+            }
 
             logger.info("Loaded ${loadedVariables.size} direnv variables")
 
