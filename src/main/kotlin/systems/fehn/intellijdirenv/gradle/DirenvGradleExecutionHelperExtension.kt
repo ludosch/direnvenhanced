@@ -40,7 +40,8 @@ class DirenvGradleExecutionHelperExtension : GradleExecutionHelperExtension {
                     logger.info("No direnv variables loaded yet, loading synchronously...")
                     val projectService = project.getService(DirenvProjectService::class.java)
                     projectService.projectEnvrcFile?.let { envrcFile ->
-                        projectService.importDirenv(envrcFile, synchronous = true)
+                        // Synchronous without notifications (Gradle sync context)
+                        projectService.importDirenv(envrcFile, synchronous = true, showNotifications = false)
                         loadedVariables = envService.getLoadedVariables()
                     }
                 }

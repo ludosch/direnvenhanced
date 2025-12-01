@@ -27,8 +27,8 @@ class DirenvExecutionListener implements ExecutionListener {
         LOG.info("Found .envrc file: " + (envrcFile != null ? envrcFile.getPath() : "null"));
 
         if (envrcFile != null) {
-            // Use synchronous mode to ensure env vars are loaded before process starts
-            service.importDirenv(envrcFile, true);
+            // Synchronous, no notifications for Run Configuration
+            service.importDirenv(envrcFile, true, false, false);
         }
     }
 }

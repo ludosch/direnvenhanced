@@ -107,19 +107,23 @@ class DirenvProjectService(private val project: Project) {
 
     private val jsonFactory by lazy { JsonFactory() }
 
-    fun importDirenv(envrcFile: VirtualFile, synchronous: Boolean = false) {
+    fun importDirenv(
+        envrcFile: VirtualFile,
+        synchronous: Boolean = false,
+        showNotifications: Boolean = true,
+        notifyNoChange: Boolean = true
+    ) {
         if (synchronous) {
-            // Run synchronously (for Run Configuration pre-execution)
-            doImportDirenv(envrcFile, showNotifications = false)
+            doImportDirenv(envrcFile, showNotifications, notifyNoChange)
         } else {
             // Run async on pooled thread to avoid EDT blocking
             ApplicationManager.getApplication().executeOnPooledThread {
-                doImportDirenv(envrcFile, showNotifications = true)
+                doImportDirenv(envrcFile, showNotifications, notifyNoChange)
             }
         }
     }
 
-    private fun doImportDirenv(envrcFile: VirtualFile, showNotifications: Boolean) {
+    private fun doImportDirenv(envrcFile: VirtualFile, showNotifications: Boolean, notifyNoChange: Boolean) {
         try {
             val process = executeDirenv(envrcFile, "export", "json")
 
@@ -153,13 +157,22 @@ class DirenvProjectService(private val project: Project) {
                 try {
                     val didWork = handleDirenvOutput(parser)
 
-                    if (showNotifications && didWork) {
-                        notificationGroup
-                            .createNotification(
-                                MyBundle.message("executedSuccessfully"),
-                                "",
-                                NotificationType.INFORMATION,
-                            ).notify(project)
+                    if (showNotifications) {
+                        if (didWork) {
+                            notificationGroup
+                                .createNotification(
+                                    MyBundle.message("executedSuccessfully"),
+                                    "",
+                                    NotificationType.INFORMATION,
+                                ).notify(project)
+                        } else if (notifyNoChange) {
+                            notificationGroup
+                                .createNotification(
+                                    MyBundle.message("alreadyUpToDate"),
+                                    "",
+                                    NotificationType.INFORMATION,
+                                ).notify(project)
+                        }
                     }
                 } catch (e: EnvironmentService.ManipulateEnvironmentException) {
                     if (showNotifications) {
