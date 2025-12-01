@@ -1,17 +1,21 @@
 # Direnv Enhanced - direnv integration for JetBrains IDEs
 
-> **Fork of [Direnv Integration](https://github.com/fehnomenal/intellij-direnv) by fehnomenal with additional features.**
+## Requirements
+
+- **IntelliJ IDEA 2025.2** or later (or other JetBrains IDEs based on the same platform)
 
 ## What's New in Direnv Enhanced
 
 - **WSL Support**: Full support for projects located in WSL (Windows Subsystem for Linux)
-- **Monorepo Support**: Automatically finds `.envrc` files in parent directories
+- **Parent Directory Support**: Finds `.envrc` in project root or immediate parent directory
 - **Gradle Integration**: Environment variables are injected into all Gradle operations (sync, build, tests, run)
 - **Improved Stability**: Fixed process deadlock issues and added timeouts
 
 ---
 
 <!-- Plugin description -->
+**Fork of [Direnv Integration](https://plugins.jetbrains.com/plugin/15285-direnv-integration) with WSL and Gradle support.**
+
 This plugin provides an action to import environment variables from [direnv](https://github.com/direnv/direnv) into the Java process that is running the IDE.
 
 ### Automatic Import before every Run/Debug
@@ -25,14 +29,12 @@ To automatically load the environment variables from a `<project_root>/.envrc` f
 If "Automatic Import on Startup" is disabled, a popup notification will appear whenever a project with a `.envrc` file in the root is opened. You can load the `.envrc` file by clicking on the link in the notification. 
 
 ### Manual Import
-To manually load an `.envrc` file: 
-- If you have the main toolbar enabled (<kbd>View</kbd> > <kbd>Appearance</kbd> > <kbd>Main Toolbar</kbd>), a button next to the <kbd>Reload All from Disk</kbd> action will start the process.
+To manually load an `.envrc` file:
+- Use the keyboard shortcut <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>D</kbd>
+- Go to <kbd>Tools</kbd> > <kbd>Reload with Direnv</kbd>
+- Right-click on a `.envrc` file in the project view and click <kbd>Reload with Direnv</kbd>
 
-![action-icon](https://user-images.githubusercontent.com/9959940/98688979-b6c88700-236b-11eb-8e27-319f23376212.png)
-
-- You can also right-click anywhere in the project and click <kbd>Import Direnv</kbd> to reload the environment.
-
-**Note**: This plugin automatically finds `.envrc` files in parent directories, which is useful for monorepo setups.
+**Note**: The plugin looks for `.envrc` in the project root and one parent directory (useful when opening a submodule).
 
 **Note**: You need `direnv` in your path, or you can specify the location of your direnv executable in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>Direnv Settings</kbd>
 
@@ -59,17 +61,8 @@ The plugin is now in the folder `build/distributions/` and can be installed manu
 
 ##### On NixOS
 
-The gradle plugins downloads JetBrains' JRE and fails to execute it.
-Add the following in `build.gradle.kts`:
-```kotlin
-tasks.withType<org.jetbrains.intellij.tasks.RunIdeBase> {
-    projectExecutable.set(org.gradle.internal.jvm.Jvm.current().javaExecutable.absolutePath)
-}
-```
-
----
-
-Logo and icon source: https://github.com/direnv/direnv-logo/tree/0949c12bafa532da0b23482a1bb042cf41b654fc
+The Gradle plugin downloads JetBrains' JRE which may fail to execute on NixOS.
+See the [IntelliJ Platform Gradle Plugin documentation](https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html) for configuration options.
 
 ---
 Plugin based on the [IntelliJ Platform Plugin Template][template].

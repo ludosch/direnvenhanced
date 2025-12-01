@@ -2,6 +2,7 @@ package systems.fehn.intellijdirenv
 
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -11,6 +12,8 @@ import systems.fehn.intellijdirenv.services.DirenvProjectService
 class DirenvImportAction : AnAction(MyBundle.message("importDirenvAction")) {
     private val logger = logger<DirenvImportAction>()
 
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+
     override fun update(e: AnActionEvent) {
         val project = e.project
         if (project == null) {
@@ -19,20 +22,17 @@ class DirenvImportAction : AnAction(MyBundle.message("importDirenvAction")) {
         }
 
         val virtualFile = e.getData(CommonDataKeys.VIRTUAL_FILE)
-        logger.info("DirenvImportAction.update: place=${e.place}, file=${virtualFile?.name}, path=${virtualFile?.path}")
 
         // Check if we're in a popup menu context (right-click)
         val isPopupMenu = e.place.contains("Popup", ignoreCase = true)
 
-        when {
-            e.place == ActionPlaces.MAIN_TOOLBAR -> e.presentation.isEnabledAndVisible = true
-            isPopupMenu -> {
-                // Show action only when right-clicking on a .envrc file
-                val isEnvrc = virtualFile?.name == ".envrc"
-                logger.info("DirenvImportAction.update: isPopupMenu=true, isEnvrc=$isEnvrc")
-                e.presentation.isEnabledAndVisible = isEnvrc
-            }
-            else -> e.presentation.isEnabledAndVisible = false
+        if (isPopupMenu) {
+            // Show action only when right-clicking on a .envrc file
+            val isEnvrc = virtualFile?.name == ".envrc"
+            e.presentation.isEnabledAndVisible = isEnvrc
+        } else {
+            // Always visible in toolbar, menus, and keyboard shortcuts
+            e.presentation.isEnabledAndVisible = true
         }
     }
 

@@ -20,7 +20,8 @@ class MyStartupActivity : ProjectActivity {
 
         projectService.projectEnvrcFile?.let {
             if (appSettings.direnvSettingsImportOnStartup) {
-                projectService.importDirenv(it)
+                // Synchronous, notify only if changes (not "already up to date")
+                projectService.importDirenv(it, synchronous = true, showNotifications = true, notifyNoChange = false)
             } else {
                 notify(project, projectService, it)
             }

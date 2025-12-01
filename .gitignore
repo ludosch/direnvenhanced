@@ -1,9 +1,6 @@
-/.gradle/
-/.idea/
-/.qodana/
+.*/
+!.github/
+!.run/
 /build/
-/.envrc
-/.intellijPlatform/
-/.kotlin/
 /devbox.json
 /devbox.lock
