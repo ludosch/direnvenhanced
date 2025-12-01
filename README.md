@@ -33,9 +33,6 @@ If "Automatic Import on Startup" is disabled, a popup notification will appear w
 ### Manual Import
 To manually load an `.envrc` file:
 - If you have the main toolbar enabled (<kbd>View</kbd> > <kbd>Appearance</kbd> > <kbd>Main Toolbar</kbd>), click the <kbd>Reload with direnv</kbd> button next to the <kbd>Reload All from Disk</kbd> action.
-
-![action-icon](https://user-images.githubusercontent.com/9959940/98688979-b6c88700-236b-11eb-8e27-319f23376212.png)
-
 - You can also right-click on a `.envrc` file in the project view and click <kbd>Reload with direnv</kbd>.
 
 **Note**: The plugin looks for `.envrc` in the project root and one parent directory (useful when opening a submodule).
