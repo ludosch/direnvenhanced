@@ -1,4 +1,5 @@
 .*/
+!.github/
 /build/
 /devbox.json
 /devbox.lock
