@@ -1,7 +1,5 @@
 # Direnv Enhanced - direnv integration for JetBrains IDEs
 
-> **Fork of [Direnv Integration](https://github.com/fehnomenal/intellij-direnv) by fehnomenal with additional features.**
-
 ## Requirements
 
 - **IntelliJ IDEA 2025.2** or later (or other JetBrains IDEs based on the same platform)
@@ -64,10 +62,6 @@ The plugin is now in the folder `build/distributions/` and can be installed manu
 
 The Gradle plugin downloads JetBrains' JRE which may fail to execute on NixOS.
 See the [IntelliJ Platform Gradle Plugin documentation](https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html) for configuration options.
-
----
-
-Logo and icon source: https://github.com/direnv/direnv-logo/tree/0949c12bafa532da0b23482a1bb042cf41b654fc
 
 ---
 Plugin based on the [IntelliJ Platform Plugin Template][template].
