@@ -2,6 +2,7 @@ package systems.fehn.intellijdirenv
 
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -10,6 +11,8 @@ import systems.fehn.intellijdirenv.services.DirenvProjectService
 
 class DirenvImportAction : AnAction(MyBundle.message("importDirenvAction")) {
     private val logger = logger<DirenvImportAction>()
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         val project = e.project
